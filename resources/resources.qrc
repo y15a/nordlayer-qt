@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/">
+        <file alias="app-icon.svg">icons/nordlayer-qt.svg</file>
+    </qresource>
+</RCC>

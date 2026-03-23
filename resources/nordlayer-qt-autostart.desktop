@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=NordLayer
+Comment=NordLayer system tray
+Exec=nordlayer-qt --minimized
+Icon=nordlayer-qt
+Terminal=false
+X-GNOME-Autostart-enabled=true
+X-KDE-autostart-after=panel
+StartupNotify=false
+Hidden=false

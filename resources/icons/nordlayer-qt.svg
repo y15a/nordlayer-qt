@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1a8cff"/>
+      <stop offset="100%" stop-color="#0050b3"/>
+    </linearGradient>
+  </defs>
+  <!-- Shield -->
+  <path d="M32 4 L8 16 L8 32 Q8 52 32 60 Q56 52 56 32 L56 16 Z"
+        fill="url(#bg)" stroke="#003d8f" stroke-width="1.5"/>
+  <!-- Inner highlight -->
+  <path d="M32 8 L12 18 L12 32 Q12 49 32 56 Q52 49 52 32 L52 18 Z"
+        fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
+  <!-- Arrow / north indicator -->
+  <path d="M32 16 L24 34 L29 34 L29 46 L35 46 L35 34 L40 34 Z"
+        fill="white" opacity="0.95"/>
+</svg>

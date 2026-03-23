@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=NordLayer
+GenericName=VPN Client
+Comment=Lightweight GUI for NordLayer CLI
+Exec=nordlayer-qt
+Icon=nordlayer-qt
+Terminal=false
+Categories=Network;VPN;Qt;
+Keywords=vpn;nordlayer;network;security;
+StartupNotify=false

@@ -1,0 +1,9 @@
+build/
+.tmp/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+*.o
+*.moc
+moc_*.cpp
