@@ -41,6 +41,7 @@ private:
     QWidget *createStatusPanel();
     QWidget *createGatewayPanel();
     QWidget *createSettingsPanel();
+    QWidget *createAboutPanel();
     void applyFilter(const QString &text);
     void updateConnectButtonState();
     void markConnectedGateway();

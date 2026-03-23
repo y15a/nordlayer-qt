@@ -74,6 +74,7 @@ void MainWindow::setupUi()
     auto *tabs = new QTabWidget;
     tabs->addTab(createGatewayPanel(), QStringLiteral("Gateways"));
     tabs->addTab(createSettingsPanel(), QStringLiteral("Settings"));
+    tabs->addTab(createAboutPanel(), QStringLiteral("About"));
     mainLayout->addWidget(tabs, 1);
 
     setCentralWidget(central);
@@ -184,6 +185,54 @@ QWidget *MainWindow::createSettingsPanel()
     form->addRow(QStringLiteral("Kill Switch:"), m_settKillSwitch);
     form->addRow(QStringLiteral("LAN Access:"), m_settLanAccess);
 
+    return widget;
+}
+
+QWidget *MainWindow::createAboutPanel()
+{
+    auto *widget = new QWidget;
+    auto *layout = new QVBoxLayout(widget);
+    layout->setContentsMargins(16, 16, 16, 16);
+    layout->setSpacing(8);
+
+    auto *title = new QLabel(QStringLiteral("nordlayer-qt"));
+    auto titleFont = title->font();
+    titleFont.setPointSize(titleFont.pointSize() + 4);
+    titleFont.setBold(true);
+    title->setFont(titleFont);
+    layout->addWidget(title);
+
+    auto *version = new QLabel(QStringLiteral("Version %1").arg(qApp->applicationVersion()));
+    layout->addWidget(version);
+
+    layout->addSpacing(4);
+
+    auto *description = new QLabel(
+        QStringLiteral("Lightweight Qt6 system-tray GUI for the NordLayer CLI."));
+    description->setWordWrap(true);
+    layout->addWidget(description);
+
+    auto *disclaimer = new QLabel(
+        QStringLiteral("This is an unofficial, community project. It is not affiliated "
+                       "with, endorsed by, or supported by Nord Security."));
+    disclaimer->setWordWrap(true);
+    auto disclaimerFont = disclaimer->font();
+    disclaimerFont.setItalic(true);
+    disclaimer->setFont(disclaimerFont);
+    layout->addWidget(disclaimer);
+
+    layout->addSpacing(8);
+
+    auto *repoLink = new QLabel(
+        QStringLiteral("<a href=\"https://github.com/y15a/nordlayer-qt\">"
+                       "github.com/y15a/nordlayer-qt</a>"));
+    repoLink->setOpenExternalLinks(true);
+    layout->addWidget(repoLink);
+
+    auto *licenseLabel = new QLabel(QStringLiteral("Licensed under the MIT License."));
+    layout->addWidget(licenseLabel);
+
+    layout->addStretch();
     return widget;
 }
 
