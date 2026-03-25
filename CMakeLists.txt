@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(nordlayer-qt VERSION 0.2.0 LANGUAGES CXX)
+project(nordlayer-qt VERSION 0.2.1 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -19,15 +19,42 @@ add_executable(nordlayer-qt
 
 target_include_directories(nordlayer-qt PRIVATE src)
 target_link_libraries(nordlayer-qt PRIVATE Qt6::Widgets)
+target_compile_definitions(nordlayer-qt PRIVATE
+    APP_VERSION="${PROJECT_VERSION}")
 
 # Install
-install(TARGETS nordlayer-qt RUNTIME DESTINATION bin)
-install(FILES resources/nordlayer-qt.desktop
-        DESTINATION share/applications)
-install(FILES resources/nordlayer-qt-autostart.desktop
-        DESTINATION share/applications)
+include(GNUInstallDirs)
+option(INSTALL_AUTOSTART "Install XDG autostart entry" ON)
+
+# Autostart directory: /etc/xdg/autostart for system installs,
+# ~/.config/autostart for user installs (override with -DAUTOSTART_INSTALL_DIR=...)
+set(AUTOSTART_INSTALL_DIR "${CMAKE_INSTALL_FULL_SYSCONFDIR}/xdg/autostart"
+    CACHE PATH "Directory for the XDG autostart .desktop file")
+
+set(NORDLAYER_QT_BINARY "${CMAKE_INSTALL_FULL_BINDIR}/nordlayer-qt")
+
+configure_file(
+    resources/nordlayer-qt.desktop.in
+    "${CMAKE_CURRENT_BINARY_DIR}/nordlayer-qt.desktop"
+    @ONLY)
+
+configure_file(
+    resources/nordlayer-qt-autostart.desktop.in
+    "${CMAKE_CURRENT_BINARY_DIR}/nordlayer-qt-autostart.desktop"
+    @ONLY)
+
+install(TARGETS nordlayer-qt RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
+
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/nordlayer-qt.desktop"
+        DESTINATION "${CMAKE_INSTALL_DATADIR}/applications")
+
+if(INSTALL_AUTOSTART)
+    install(FILES "${CMAKE_CURRENT_BINARY_DIR}/nordlayer-qt-autostart.desktop"
+            DESTINATION "${AUTOSTART_INSTALL_DIR}")
+endif()
+
 install(FILES resources/icons/nordlayer-qt.svg
-        DESTINATION share/icons/hicolor/scalable/apps)
+        DESTINATION "${CMAKE_INSTALL_DATADIR}/icons/hicolor/scalable/apps")
 
 # Tests
 option(BUILD_TESTS "Build unit tests" ON)

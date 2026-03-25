@@ -2,7 +2,7 @@
 Type=Application
 Name=NordLayer
 Comment=NordLayer system tray
-Exec=nordlayer-qt --minimized
+Exec=@NORDLAYER_QT_BINARY@ --minimized
 Icon=nordlayer-qt
 Terminal=false
 X-GNOME-Autostart-enabled=true

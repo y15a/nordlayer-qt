@@ -9,7 +9,7 @@ int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
     app.setApplicationName(QStringLiteral("NordLayer"));
-    app.setApplicationVersion(QStringLiteral("0.1.0"));
+    app.setApplicationVersion(QStringLiteral(APP_VERSION));
     app.setOrganizationName(QStringLiteral("nordlayer-qt"));
     app.setWindowIcon(QIcon(QStringLiteral(":/app-icon.svg")));
     app.setQuitOnLastWindowClosed(false);
