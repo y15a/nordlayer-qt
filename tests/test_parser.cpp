@@ -13,6 +13,10 @@ private slots:
     void testParseGateways_empty();
     void testParseSettings();
     void testParseSettings_partial();
+    void testParseStatus_loggedIn();
+    void testParseStatus_notLoggedIn();
+    void testParseLoginMethods();
+    void testParseLoginMethods_empty();
 };
 
 void TestParser::testStripAnsi()
@@ -132,6 +136,57 @@ void TestParser::testParseSettings_partial()
     QCOMPARE(settings.killSwitch, QStringLiteral("Enabled"));
     QCOMPARE(settings.autoConnect, QStringLiteral("Enabled"));
     QVERIFY(settings.vpnProtocol.isEmpty());
+}
+
+void TestParser::testParseStatus_loggedIn()
+{
+    QString output = QStringLiteral(
+        "Login: Logged in [user@example.com myorg]\n"
+        "VPN: Connected\n");
+
+    auto status = NordLayerParser::parseStatus(output);
+    QVERIFY(status.loggedIn);
+    QCOMPARE(status.email, QStringLiteral("user@example.com"));
+    QCOMPARE(status.organization, QStringLiteral("myorg"));
+}
+
+void TestParser::testParseStatus_notLoggedIn()
+{
+    QString output = QStringLiteral(
+        "Login: Not logged in\n"
+        "VPN: Not Connected\n"
+        "Current network: kkhr-wifi-5g\n");
+
+    auto status = NordLayerParser::parseStatus(output);
+    QVERIFY(!status.loggedIn);
+    QVERIFY(status.email.isEmpty());
+    QVERIFY(status.organization.isEmpty());
+    QCOMPARE(status.state, ConnectionState::Disconnected);
+    QCOMPARE(status.network, QStringLiteral("kkhr-wifi-5g"));
+}
+
+void TestParser::testParseLoginMethods()
+{
+    QString output = QStringLiteral(
+        "Available login methods:\n"
+        "1: Email and password\n"
+        "2: Google\n"
+        "\n"
+        "Select [number]: ");
+
+    auto methods = NordLayerParser::parseLoginMethods(output);
+    QCOMPARE(methods.size(), 2);
+    QCOMPARE(methods[0].number, 1);
+    QCOMPARE(methods[0].name, QStringLiteral("Email and password"));
+    QCOMPARE(methods[1].number, 2);
+    QCOMPARE(methods[1].name, QStringLiteral("Google"));
+}
+
+void TestParser::testParseLoginMethods_empty()
+{
+    QString output = QStringLiteral("Some other output with no methods\n");
+    auto methods = NordLayerParser::parseLoginMethods(output);
+    QCOMPARE(methods.size(), 0);
 }
 
 QTEST_MAIN(TestParser)

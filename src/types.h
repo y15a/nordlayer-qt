@@ -14,11 +14,17 @@ enum class ConnectionState {
 
 struct StatusInfo {
     ConnectionState state = ConnectionState::Unknown;
+    bool loggedIn = false;
     QString email;
     QString organization;
     QString network;
     QString gateway;
     QString serverIp;
+};
+
+struct LoginMethod {
+    int number = 0;
+    QString name;
 };
 
 struct Gateway {
@@ -37,6 +43,7 @@ struct SettingsInfo {
 };
 
 Q_DECLARE_METATYPE(StatusInfo)
+Q_DECLARE_METATYPE(LoginMethod)
 Q_DECLARE_METATYPE(Gateway)
 Q_DECLARE_METATYPE(SettingsInfo)
 

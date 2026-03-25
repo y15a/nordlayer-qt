@@ -13,6 +13,7 @@ public:
     explicit NordLayerClient(QObject *parent = nullptr);
 
     bool isBusy() const;
+    bool isLoginInProgress() const;
     void setCliPath(const QString &path);
 
 public slots:
@@ -22,6 +23,11 @@ public slots:
     void connectToGateway(const QString &gatewayId);
     void disconnectVpn();
 
+    void login(const QString &organization);
+    void selectLoginMethod(int methodNumber);
+    void cancelLogin();
+    void logout();
+
 signals:
     void statusUpdated(const StatusInfo &status);
     void gatewaysLoaded(const QList<Gateway> &gateways);
@@ -30,13 +36,19 @@ signals:
     void errorOccurred(const QString &message);
     void busyChanged(bool busy);
 
+    void loginMethodsAvailable(const QList<LoginMethod> &methods);
+    void loginWaitingForBrowser(const QString &url);
+    void loginFinished(bool success);
+    void logoutFinished();
+
 private:
     enum class CommandType {
         Status,
         Gateways,
         Settings,
         Connect,
-        Disconnect
+        Disconnect,
+        Logout
     };
 
     struct PendingCommand {
@@ -46,12 +58,22 @@ private:
 
     void runCommand(CommandType type, const QStringList &args);
     void handleFinished(PendingCommand cmd, int exitCode, QProcess::ExitStatus exitStatus);
+    void onLoginOutput();
+    void cleanupLogin();
 
     QString m_cliPath;
     QList<PendingCommand> m_pending;
     bool m_connectInFlight = false;
 
+    // Login-specific state
+    QProcess *m_loginProcess = nullptr;
+    QTimer *m_loginTimer = nullptr;
+    QString m_loginBuffer;
+    bool m_loginInFlight = false;
+    bool m_loginMethodsSent = false;
+
     static constexpr int COMMAND_TIMEOUT_MS = 30000;
+    static constexpr int LOGIN_TIMEOUT_MS = 300000; // 5 minutes for browser auth
 };
 
 #endif // NORDLAYER_CLIENT_H

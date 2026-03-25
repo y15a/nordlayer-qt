@@ -21,6 +21,8 @@ signals:
     void toggleWindowRequested();
     void connectRequested(const QString &gatewayId);
     void disconnectRequested();
+    void loginRequested();
+    void logoutRequested();
     void quitRequested();
 
 public slots:
@@ -37,6 +39,8 @@ private:
     QSystemTrayIcon *m_trayIcon;
     QMenu *m_menu;
     QAction *m_statusAction;
+    QAction *m_loginAction;
+    QAction *m_logoutAction;
     QAction *m_quickConnectAction;
     QAction *m_disconnectAction;
 

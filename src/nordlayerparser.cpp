@@ -34,6 +34,7 @@ StatusInfo NordLayerParser::parseStatus(const QString &output)
         if ((idx = line.indexOf("Login:")) >= 0) {
             QString value = line.mid(idx + 6).trimmed();
             if (value.contains("Logged in")) {
+                info.loggedIn = true;
                 // Format: "Logged in [email org]"
                 static const QRegularExpression loginRe(
                     QStringLiteral("Logged in \\[(.+?)\\s+(\\S+)\\]"));
@@ -42,6 +43,8 @@ StatusInfo NordLayerParser::parseStatus(const QString &output)
                     info.email = match.captured(1);
                     info.organization = match.captured(2);
                 }
+            } else if (value.contains("Not logged in")) {
+                info.loggedIn = false;
             }
         } else if (line.contains("VPN:")) {
             QString value = extractAfter(line, "VPN:");
@@ -154,4 +157,26 @@ SettingsInfo NordLayerParser::parseSettings(const QString &output)
     }
 
     return info;
+}
+
+QList<LoginMethod> NordLayerParser::parseLoginMethods(const QString &output)
+{
+    QList<LoginMethod> methods;
+    const QString clean = stripAnsi(output);
+    const QStringList lines = clean.split('\n', Qt::SkipEmptyParts);
+
+    static const QRegularExpression methodRe(
+        QStringLiteral("^\\s*(\\d+)\\s*:\\s*(.+)$"));
+
+    for (const QString &rawLine : lines) {
+        auto match = methodRe.match(rawLine);
+        if (match.hasMatch()) {
+            LoginMethod m;
+            m.number = match.captured(1).toInt();
+            m.name = match.captured(2).trimmed();
+            methods.append(m);
+        }
+    }
+
+    return methods;
 }

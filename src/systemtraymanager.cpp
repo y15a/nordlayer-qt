@@ -8,6 +8,8 @@ SystemTrayManager::SystemTrayManager(QObject *parent)
     , m_trayIcon(new QSystemTrayIcon(this))
     , m_menu(new QMenu)
     , m_statusAction(nullptr)
+    , m_loginAction(nullptr)
+    , m_logoutAction(nullptr)
     , m_quickConnectAction(nullptr)
     , m_disconnectAction(nullptr)
 {
@@ -71,8 +73,16 @@ void SystemTrayManager::buildMenu()
 
     m_menu->addSeparator();
 
+    m_loginAction = m_menu->addAction(QStringLiteral("Login..."));
+    connect(m_loginAction, &QAction::triggered, this, &SystemTrayManager::loginRequested);
+
+    m_logoutAction = m_menu->addAction(QStringLiteral("Logout"));
+    m_logoutAction->setVisible(false);
+    connect(m_logoutAction, &QAction::triggered, this, &SystemTrayManager::logoutRequested);
+
     m_quickConnectAction = m_menu->addAction(QStringLiteral("Quick Connect"));
     m_quickConnectAction->setEnabled(false);
+    m_quickConnectAction->setVisible(false);
     connect(m_quickConnectAction, &QAction::triggered, this, [this]() {
         if (!m_lastGatewayId.isEmpty()) {
             emit connectRequested(m_lastGatewayId);
@@ -80,6 +90,7 @@ void SystemTrayManager::buildMenu()
     });
 
     m_disconnectAction = m_menu->addAction(QStringLiteral("Disconnect"));
+    m_disconnectAction->setVisible(false);
     connect(m_disconnectAction, &QAction::triggered, this, &SystemTrayManager::disconnectRequested);
 
     m_menu->addSeparator();
@@ -96,30 +107,41 @@ void SystemTrayManager::updateStatus(const StatusInfo &status)
     m_currentState = status.state;
     m_trayIcon->setIcon(iconForState(status.state));
 
+    // Toggle auth-dependent actions
+    m_loginAction->setVisible(!status.loggedIn);
+    m_logoutAction->setVisible(status.loggedIn);
+    m_quickConnectAction->setVisible(status.loggedIn);
+    m_disconnectAction->setVisible(status.loggedIn);
+
     QString tooltip;
-    switch (status.state) {
-    case ConnectionState::Connected:
-        tooltip = QStringLiteral("NordLayer - Connected");
-        if (!status.gateway.isEmpty())
-            tooltip += QStringLiteral(" to ") + status.gateway;
+    if (!status.loggedIn) {
+        tooltip = QStringLiteral("NordLayer - Not Logged In");
         m_statusAction->setText(tooltip);
-        m_disconnectAction->setEnabled(true);
-        break;
-    case ConnectionState::Connecting:
-        tooltip = QStringLiteral("NordLayer - Connecting...");
-        m_statusAction->setText(tooltip);
-        m_disconnectAction->setEnabled(false);
-        break;
-    case ConnectionState::Disconnected:
-        tooltip = QStringLiteral("NordLayer - Disconnected");
-        m_statusAction->setText(tooltip);
-        m_disconnectAction->setEnabled(false);
-        break;
-    default:
-        tooltip = QStringLiteral("NordLayer - Unknown");
-        m_statusAction->setText(tooltip);
-        m_disconnectAction->setEnabled(false);
-        break;
+    } else {
+        switch (status.state) {
+        case ConnectionState::Connected:
+            tooltip = QStringLiteral("NordLayer - Connected");
+            if (!status.gateway.isEmpty())
+                tooltip += QStringLiteral(" to ") + status.gateway;
+            m_statusAction->setText(tooltip);
+            m_disconnectAction->setEnabled(true);
+            break;
+        case ConnectionState::Connecting:
+            tooltip = QStringLiteral("NordLayer - Connecting...");
+            m_statusAction->setText(tooltip);
+            m_disconnectAction->setEnabled(false);
+            break;
+        case ConnectionState::Disconnected:
+            tooltip = QStringLiteral("NordLayer - Disconnected");
+            m_statusAction->setText(tooltip);
+            m_disconnectAction->setEnabled(false);
+            break;
+        default:
+            tooltip = QStringLiteral("NordLayer - Unknown");
+            m_statusAction->setText(tooltip);
+            m_disconnectAction->setEnabled(false);
+            break;
+        }
     }
     m_trayIcon->setToolTip(tooltip);
 }

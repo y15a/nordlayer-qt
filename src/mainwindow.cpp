@@ -26,6 +26,11 @@ MainWindow::MainWindow(QWidget *parent)
     connect(m_client, &NordLayerClient::errorOccurred, this, &MainWindow::onError);
     connect(m_client, &NordLayerClient::busyChanged, this, &MainWindow::onBusyChanged);
 
+    // Login signals
+    connect(m_client, &NordLayerClient::loginMethodsAvailable, this, &MainWindow::onLoginMethodsAvailable);
+    connect(m_client, &NordLayerClient::loginWaitingForBrowser, this, &MainWindow::onLoginWaitingForBrowser);
+    connect(m_client, &NordLayerClient::loginFinished, this, &MainWindow::onLoginFinished);
+
     // Gateway selection changes → update Connect button
     connect(m_gatewayTree, &QTreeWidget::currentItemChanged, this,
             [this](QTreeWidgetItem *, QTreeWidgetItem *) {
@@ -42,6 +47,13 @@ MainWindow::MainWindow(QWidget *parent)
     });
     connect(m_tray, &SystemTrayManager::connectRequested, m_client, &NordLayerClient::connectToGateway);
     connect(m_tray, &SystemTrayManager::disconnectRequested, m_client, &NordLayerClient::disconnectVpn);
+    connect(m_tray, &SystemTrayManager::loginRequested, this, [this]() {
+        show();
+        raise();
+        activateWindow();
+        m_orgEdit->setFocus();
+    });
+    connect(m_tray, &SystemTrayManager::logoutRequested, this, &MainWindow::onLogoutClicked);
     connect(m_tray, &SystemTrayManager::quitRequested, qApp, &QApplication::quit);
 
     // Refresh timer
@@ -67,15 +79,15 @@ void MainWindow::setupUi()
     mainLayout->setContentsMargins(8, 8, 8, 8);
     mainLayout->setSpacing(6);
 
-    // Status panel at top
+    // Status panel at top (stacked widget)
     mainLayout->addWidget(createStatusPanel());
 
     // Tabs for gateways and settings
-    auto *tabs = new QTabWidget;
-    tabs->addTab(createGatewayPanel(), QStringLiteral("Gateways"));
-    tabs->addTab(createSettingsPanel(), QStringLiteral("Settings"));
-    tabs->addTab(createAboutPanel(), QStringLiteral("About"));
-    mainLayout->addWidget(tabs, 1);
+    m_tabs = new QTabWidget;
+    m_tabs->addTab(createGatewayPanel(), QStringLiteral("Gateways"));
+    m_tabs->addTab(createSettingsPanel(), QStringLiteral("Settings"));
+    m_tabs->addTab(createAboutPanel(), QStringLiteral("About"));
+    mainLayout->addWidget(m_tabs, 1);
 
     setCentralWidget(central);
 
@@ -87,6 +99,105 @@ QWidget *MainWindow::createStatusPanel()
 {
     auto *group = new QGroupBox;
     auto *layout = new QVBoxLayout(group);
+    layout->setContentsMargins(8, 8, 8, 8);
+    layout->setSpacing(0);
+
+    m_statusStack = new QStackedWidget;
+    m_statusStack->addWidget(createLoginPage());   // page 0
+    m_statusStack->addWidget(createStatusPage());   // page 1
+    m_statusStack->setCurrentIndex(0); // Default to login until we know
+    layout->addWidget(m_statusStack);
+
+    return group;
+}
+
+QWidget *MainWindow::createLoginPage()
+{
+    auto *page = new QWidget;
+    auto *layout = new QVBoxLayout(page);
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->setSpacing(4);
+
+    // Header: "Not Logged In"
+    auto *headerRow = new QHBoxLayout;
+    headerRow->setSpacing(6);
+
+    auto *icon = new QLabel;
+    icon->setFixedSize(12, 12);
+    icon->setStyleSheet(
+        QStringLiteral("QLabel { background-color: #e74c3c; border-radius: 6px; }"));
+    headerRow->addWidget(icon, 0, Qt::AlignVCenter);
+
+    auto *headerLabel = new QLabel(QStringLiteral("Not Logged In"));
+    auto font = headerLabel->font();
+    font.setPointSize(font.pointSize() + 2);
+    font.setBold(true);
+    headerLabel->setFont(font);
+    headerRow->addWidget(headerLabel);
+    headerRow->addStretch();
+    layout->addLayout(headerRow);
+
+    layout->addSpacing(8);
+
+    // Organization input
+    auto *orgRow = new QHBoxLayout;
+    orgRow->setSpacing(6);
+    auto *orgLabel = new QLabel(QStringLiteral("Organization:"));
+    orgRow->addWidget(orgLabel);
+
+    m_orgEdit = new QLineEdit;
+    m_orgEdit->setPlaceholderText(QStringLiteral("Enter organization name"));
+    orgRow->addWidget(m_orgEdit, 1);
+
+    m_loginBtn = new QPushButton(QStringLiteral("Login"));
+    connect(m_loginBtn, &QPushButton::clicked, this, &MainWindow::onLoginClicked);
+    orgRow->addWidget(m_loginBtn);
+    layout->addLayout(orgRow);
+
+    // Login method selector (hidden initially)
+    m_methodCombo = new QComboBox;
+    m_methodCombo->setVisible(false);
+    layout->addWidget(m_methodCombo);
+
+    auto *methodRow = new QHBoxLayout;
+    methodRow->addStretch();
+    m_methodSelectBtn = new QPushButton(QStringLiteral("Continue"));
+    m_methodSelectBtn->setVisible(false);
+    connect(m_methodSelectBtn, &QPushButton::clicked, this, &MainWindow::onMethodSelectClicked);
+    methodRow->addWidget(m_methodSelectBtn);
+    layout->addLayout(methodRow);
+
+    // Status label for progress feedback
+    m_loginStatusLabel = new QLabel;
+    m_loginStatusLabel->setWordWrap(true);
+    m_loginStatusLabel->setOpenExternalLinks(true);
+    m_loginStatusLabel->setTextFormat(Qt::RichText);
+    m_loginStatusLabel->setVisible(false);
+    layout->addWidget(m_loginStatusLabel);
+
+    // Cancel button (hidden initially)
+    auto *cancelRow = new QHBoxLayout;
+    cancelRow->addStretch();
+    m_cancelLoginBtn = new QPushButton(QStringLiteral("Cancel"));
+    m_cancelLoginBtn->setVisible(false);
+    connect(m_cancelLoginBtn, &QPushButton::clicked, this, [this]() {
+        m_client->cancelLogin();
+    });
+    cancelRow->addWidget(m_cancelLoginBtn);
+    layout->addLayout(cancelRow);
+
+    // Allow Enter in org field to trigger login
+    connect(m_orgEdit, &QLineEdit::returnPressed, m_loginBtn, &QPushButton::click);
+
+    layout->addStretch();
+    return page;
+}
+
+QWidget *MainWindow::createStatusPage()
+{
+    auto *page = new QWidget;
+    auto *layout = new QVBoxLayout(page);
+    layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(2);
 
     // Top row: small status dot + connection label
@@ -118,9 +229,13 @@ QWidget *MainWindow::createStatusPanel()
     m_gatewayLabel = new QLabel;
     layout->addWidget(m_gatewayLabel);
 
-    // Disconnect button row — right-aligned, hidden when disconnected
+    // Button row — right-aligned
     auto *btnRow = new QHBoxLayout;
     btnRow->addStretch();
+
+    m_logoutBtn = new QPushButton(QStringLiteral("Logout"));
+    connect(m_logoutBtn, &QPushButton::clicked, this, &MainWindow::onLogoutClicked);
+    btnRow->addWidget(m_logoutBtn);
 
     m_disconnectBtn = new QPushButton(QStringLiteral("Disconnect"));
     m_disconnectBtn->setVisible(false);
@@ -129,7 +244,7 @@ QWidget *MainWindow::createStatusPanel()
 
     layout->addLayout(btnRow);
 
-    return group;
+    return page;
 }
 
 QWidget *MainWindow::createGatewayPanel()
@@ -246,9 +361,108 @@ void MainWindow::closeEvent(QCloseEvent *event)
     }
 }
 
+// --- Auth slots ---
+
+void MainWindow::onLoginClicked()
+{
+    QString org = m_orgEdit->text().trimmed();
+    if (org.isEmpty()) {
+        statusBar()->showMessage(QStringLiteral("Please enter an organization name."), 5000);
+        m_orgEdit->setFocus();
+        return;
+    }
+
+    // Disable input, show cancel
+    m_orgEdit->setEnabled(false);
+    m_loginBtn->setEnabled(false);
+    m_cancelLoginBtn->setVisible(true);
+    m_loginStatusLabel->setText(QStringLiteral("Connecting to organization..."));
+    m_loginStatusLabel->setVisible(true);
+
+    m_client->login(org);
+}
+
+void MainWindow::onLoginMethodsAvailable(const QList<LoginMethod> &methods)
+{
+    m_methodCombo->clear();
+    for (const auto &method : methods) {
+        m_methodCombo->addItem(method.name, method.number);
+    }
+    m_methodCombo->setVisible(true);
+    m_methodSelectBtn->setVisible(true);
+    m_loginStatusLabel->setText(QStringLiteral("Select a login method:"));
+}
+
+void MainWindow::onMethodSelectClicked()
+{
+    int methodNumber = m_methodCombo->currentData().toInt();
+    m_methodCombo->setEnabled(false);
+    m_methodSelectBtn->setEnabled(false);
+    m_loginStatusLabel->setText(QStringLiteral("Opening browser for authentication..."));
+    m_client->selectLoginMethod(methodNumber);
+}
+
+void MainWindow::onLoginWaitingForBrowser(const QString &url)
+{
+    m_loginStatusLabel->setText(
+        QStringLiteral("Complete authentication in your browser:<br>"
+                       "<a href=\"%1\">%1</a><br>"
+                       "Waiting for confirmation...").arg(url.toHtmlEscaped()));
+}
+
+void MainWindow::onLoginFinished(bool success)
+{
+    Q_UNUSED(success);
+    // Status refresh will handle the page switch via setLoggedIn()
+    resetLoginForm();
+}
+
+void MainWindow::onLogoutClicked()
+{
+    m_client->logout();
+}
+
+void MainWindow::resetLoginForm()
+{
+    m_orgEdit->setEnabled(true);
+    m_loginBtn->setEnabled(true);
+    m_methodCombo->clear();
+    m_methodCombo->setVisible(false);
+    m_methodCombo->setEnabled(true);
+    m_methodSelectBtn->setVisible(false);
+    m_methodSelectBtn->setEnabled(true);
+    m_loginStatusLabel->setVisible(false);
+    m_cancelLoginBtn->setVisible(false);
+}
+
+void MainWindow::setLoggedIn(bool loggedIn)
+{
+    if (m_isLoggedIn == loggedIn)
+        return;
+
+    m_isLoggedIn = loggedIn;
+    m_statusStack->setCurrentIndex(loggedIn ? 1 : 0);
+
+    // Disable Gateways and Settings tabs when logged out (About stays enabled)
+    m_tabs->setTabEnabled(0, loggedIn); // Gateways
+    m_tabs->setTabEnabled(1, loggedIn); // Settings
+
+    if (!loggedIn) {
+        // Switch to About tab if current tab is now disabled
+        if (m_tabs->currentIndex() < 2) {
+            m_tabs->setCurrentIndex(2);
+        }
+    }
+}
+
+// --- Status & data slots ---
+
 void MainWindow::onStatusUpdated(const StatusInfo &status)
 {
     m_currentState = status.state;
+
+    // Switch between login/status pages based on auth state
+    setLoggedIn(status.loggedIn);
 
     if (!status.email.isEmpty()) {
         m_userLabel->setText(QStringLiteral("%1 [%2]").arg(status.email, status.organization));
@@ -388,6 +602,7 @@ void MainWindow::onBusyChanged(bool busy)
 {
     updateConnectButtonState();
     m_disconnectBtn->setEnabled(!busy && m_currentState == ConnectionState::Connected);
+    m_logoutBtn->setEnabled(!busy);
     if (busy) {
         statusBar()->showMessage(QStringLiteral("Operation in progress..."));
     }
