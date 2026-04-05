@@ -28,8 +28,15 @@ option(INSTALL_AUTOSTART "Install XDG autostart entry" ON)
 
 # Autostart directory: /etc/xdg/autostart for system installs,
 # ~/.config/autostart for user installs (override with -DAUTOSTART_INSTALL_DIR=...)
-set(AUTOSTART_INSTALL_DIR "${CMAKE_INSTALL_FULL_SYSCONFDIR}/xdg/autostart"
-    CACHE PATH "Directory for the XDG autostart .desktop file")
+if(NOT DEFINED CACHE{AUTOSTART_INSTALL_DIR})
+    if(CMAKE_INSTALL_PREFIX MATCHES "^$ENV{HOME}")
+        set(_default_autostart "$ENV{HOME}/.config/autostart")
+    else()
+        set(_default_autostart "${CMAKE_INSTALL_FULL_SYSCONFDIR}/xdg/autostart")
+    endif()
+    set(AUTOSTART_INSTALL_DIR "${_default_autostart}"
+        CACHE PATH "Directory for the XDG autostart .desktop file")
+endif()
 
 set(NORDLAYER_QT_BINARY "${CMAKE_INSTALL_FULL_BINDIR}/nordlayer-qt")
 
